@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Canva + Editor XML</title>
+  <!-- Fabric.js para manipulação do Canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { display: flex; height: 100vh; background-color: #f0f2f5; color: #333; }
+    
+    /* Painel Lateral Left - Ferramentas */
+    .sidebar { width: 260px; background-color: #ffffff; border-right: 1px solid #e0e0e0; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .sidebar h2 { font-size: 1.1rem; color: #444; margin-bottom: 5px; }
+    .btn { padding: 10px 15px; background-color: #6200ee; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+    .btn:hover { background-color: #3700b3; }
+    .btn-secondary { background-color: #03adc5; }
+    .btn-secondary:hover { background-color: #018786; }
+    .btn-danger { background-color: #cf6679; }
+    .btn-danger:hover { background-color: #b00020; }
+    
+    /* Área Central - Canvas */
+    .main-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; overflow: auto; }
+    .canvas-container-wrapper { box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; background-color: white; }
+    
+    /* Painel Lateral Right - XML & Propriedades */
+    .xml-panel { width: 380px; background-color: #ffffff; border-left: 1px solid #e0e0e0; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .xml-panel textarea { flex: 1; width: 100%; border: 1px solid #ccc; border-radius: 6px; padding: 10px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; resize: none; background-color: #1e1e1e; color: #6a9fb5; }
+    
+    .section-title { font-size: 0.9rem; font-weight: bold; text-transform: uppercase; color: #666; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar: Adicionar Elementos -->
+  <div class="sidebar">
+    <h2>Elementos Básicos</h2>
+    <button class="btn" onclick="addText()">+ Adicionar Texto</button>
+    <button class="btn" onclick="addRect()">+ Retângulo</button>
+    <button class="btn" onclick="addCircle()">+ Círculo</button>
+    
+    <span class="section-title">Avançado</span>
+    <button class="btn btn-secondary" onclick="addStar()">+ Estrela Customizada</button>
+    
+    <span class="section-title">Ações</span>
+    <button class="btn btn-danger" onclick="deleteSelected()">Excluir Selecionado</button>
+  </div>
+
+  <!-- Centro: Área de Design -->
+  <div class="main-content">
+    <div class="canvas-container-wrapper">
+      <canvas id="editorCanvas" width="600" height="600"></canvas>
+    </div>
+  </div>
+
+  <!-- Painel XML -->
+  <div class="xml-panel">
+    <h2>Código XML</h2>
+    <p style="font-size: 0.8rem; color: #666;">Gere o XML do canvas ou cole um XML válido abaixo para carregar no editor.</p>
+    
+    <button class="btn" onclick="generateXML()">Gerar XML do Canvas</button>
+    
+    <textarea id="xmlOutput" placeholder="O código XML aparecerá aqui..."></textarea>
+    
+    <button class="btn btn-secondary" onclick="loadXML()">Carregar XML no Canvas</button>
+  </div>
+
+  <script>
+    // Inicialização do Canvas com Fabric.js
+    const canvas = new fabric.Canvas('editorCanvas', {
+      backgroundColor: '#ffffff'
+    });
+
+    // --- ADICIONAR ELEMENTOS BÁSICOS --- //
+    function addText() {
+      const text = new fabric.IText('Clique duplo para editar', {
+        left: 100,
+        top: 100,
+        fontFamily: 'arial',
+        fill: '#333333',
+        fontSize: 24
+      });
+      canvas.add(text);
+      canvas.setActiveObject(text);
+    }
+
+    function addRect() {
+      const rect = new fabric.Rect({
+        left: 150,
+        top: 150,
+        fill: '#6200ee',
+        width: 120,
+        height: 80,
+        rx: 5, ry: 5 // bordas levemente arredondadas
+      });
+      canvas.add(rect);
+      canvas.setActiveObject(rect);
+    }
+
+    function addCircle() {
+      const circle = new fabric.Circle({
+        left: 200,
+        top: 200,
+        fill: '#03adc5',
+        radius: 50
+      });
+      canvas.add(circle);
+      canvas.setActiveObject(circle);
+    }
+
+    // --- ADICIONAR ELEMENTO AVANÇADO (Polígono / Estrela) --- //
+    function addStar() {
+      // Criação de forma complexa via pontos
+      const points = [
+        {x: 0, y: -50}, {x: 14, y: -20}, {x: 47, y: -15},
+        {x: 23, y: 10}, {x: 29, y: 43}, {x: 0, y: 25},
+        {x: -29, y: 43}, {x: -23, y: 10}, {x: -47, y: -15},
+        {x: -14, y: -20}
+      ];
+      
+      const star = new fabric.Polygon(points, {
+        left: 250,
+        top: 250,
+        fill: '#ffb703',
+        stroke: '#fb8500',
+        strokeWidth: 2
+      });
+      canvas.add(star);
+      canvas.setActiveObject(star);
+    }
+
+    // Excluir objeto selecionado
+    function deleteSelected() {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        canvas.remove(activeObject);
+      }
+    }
+
+    // --- GERADOR DE XML --- //
+    function generateXML() {
+      const objects = canvas.getObjects();
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<canvas width="${canvas.width}" height="${canvas.height}" background="${canvas.backgroundColor}">\n`;
+
+      objects.forEach(obj => {
+        const type = obj.type;
+        const left = Math.round(obj.left);
+        const top = Math.round(obj.top);
+        const fill = obj.fill;
+        const scaleX = obj.scaleX ? obj.scaleX.toFixed(2) : 1;
+        const scaleY = obj.scaleY ? obj.scaleY.toFixed(2) : 1;
+        const angle = Math.round(obj.angle || 0);
+
+        if (type === 'i-text' || type === 'text') {
+          xml += `  <element type="text" left="${left}" top="${top}" fill="${fill}" fontSize="${obj.fontSize}" scaleX="${scaleX}" scaleY="${scaleY}" angle="${angle}">${escapeXML(obj.text)}</element>\n`;
+        } else if (type === 'rect') {
+          xml += `  <element type="rect" left="${left}" top="${top}" width="${Math.round(obj.width)}" height="${Math.round(obj.height)}" fill="${fill}" scaleX="${scaleX}" scaleY="${scaleY}" angle="${angle}" />\n`;
+        } else if (type === 'circle') {
+          xml += `  <element type="circle" left="${left}" top="${top}" radius="${Math.round(obj.radius)}" fill="${fill}" scaleX="${scaleX}" scaleY="${scaleY}" angle="${angle}" />\n`;
+        } else if (type === 'polygon') {
+          const pointsStr = JSON.stringify(obj.points);
+          xml += `  <element type="polygon" left="${left}" top="${top}" fill="${fill}" points='${pointsStr}' scaleX="${scaleX}" scaleY="${scaleY}" angle="${angle}" />\n`;
+        }
+      });
+
+      xml += `</canvas>`;
+      document.getElementById('xmlOutput').value = xml;
+    }
+
+    // Escape de caracteres especiais para XML
+    function escapeXML(str) {
+      return str.replace(/[<>&'"]/g, c => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+        }
+      });
+    }
+
+    // --- LEITOR DE XML --- //
+    function loadXML() {
+      const xmlString = document.getElementById('xmlOutput').value;
+      if (!xmlString.trim()) {
+        alert("Cole um código XML válido na caixa de texto.");
+        return;
+      }
+
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+
+        // Checa erros de parsing
+        if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+          alert("Erro ao ler o código XML. Verifique a sintaxe.");
+          return;
+        }
+
+        // Limpa o canvas atual
+        canvas.clear();
+
+        const canvasNode = xmlDoc.getElementsByTagName("canvas")[0];
+        if (canvasNode && canvasNode.getAttribute("background")) {
+          canvas.setBackgroundColor(canvasNode.getAttribute("background"), canvas.renderAll.bind(canvas));
+        }
+
+        const elements = xmlDoc.getElementsByTagName("element");
+
+        for (let el of elements) {
+          const type = el.getAttribute("type");
+          const left = parseFloat(el.getAttribute("left")) || 0;
+          const top = parseFloat(el.getAttribute("top")) || 0;
+          const fill = el.getAttribute("fill") || '#000000';
+          const scaleX = parseFloat(el.getAttribute("scaleX")) || 1;
+          const scaleY = parseFloat(el.getAttribute("scaleY")) || 1;
+          const angle = parseFloat(el.getAttribute("angle")) || 0;
+
+          let fabricObj;
+
+          if (type === 'text') {
+            fabricObj = new fabric.IText(el.textContent, {
+              left, top, fill,
+              fontSize: parseFloat(el.getAttribute("fontSize")) || 20,
+              scaleX, scaleY, angle
+            });
+          } else if (type === 'rect') {
+            fabricObj = new fabric.Rect({
+              left, top, fill,
+              width: parseFloat(el.getAttribute("width")) || 100,
+              height: parseFloat(el.getAttribute("height")) || 100,
+              scaleX, scaleY, angle
+            });
+          } else if (type === 'circle') {
+            fabricObj = new fabric.Circle({
+              left, top, fill,
+              radius: parseFloat(el.getAttribute("radius")) || 50,
+              scaleX, scaleY, angle
+            });
+          } else if (type === 'polygon') {
+            const points = JSON.parse(el.getAttribute("points"));
+            fabricObj = new fabric.Polygon(points, {
+              left, top, fill,
+              scaleX, scaleY, angle
+            });
+          }
+
+          if (fabricObj) {
+            canvas.add(fabricObj);
+          }
+        }
+
+        canvas.renderAll();
+      } catch (err) {
+        alert("Falha ao processar o XML: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
